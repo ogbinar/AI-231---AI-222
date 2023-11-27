@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Webcam Feed</title>
+</head>
+<body>
+    <video id="webcam" autoplay></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+    <img id="output" src="">
+     
+
+    <script>
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('canvas');
+        const output = document.getElementById('output');
+        const captureButton = document.getElementById('capture');
+
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => video.srcObject = stream);
+
+       
+           setInterval(() => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            const imgData = canvas.toDataURL('image/jpeg').split(',')[1];
+
+            fetch('http://127.0.0.1:5000/api/predict', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ img: imgData })
+            })
+            .then(response => response.json())
+            .then(data => {
+                output.src = 'data:image/jpeg;base64,' + data.img;
+            });
+        }, 1000);
+    </script>
+</body>
+</html>
