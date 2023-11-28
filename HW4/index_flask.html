@@ -7,43 +7,34 @@
     <video id="webcam" autoplay></video>
     <canvas id="canvas" style="display:none;"></canvas>
     <img id="output" src="">
+     
 
     <script>
         const video = document.getElementById('webcam');
         const canvas = document.getElementById('canvas');
         const output = document.getElementById('output');
+        const captureButton = document.getElementById('capture');
 
         navigator.mediaDevices.getUserMedia({ video: true })
             .then(stream => video.srcObject = stream);
 
-        setInterval(() => {
+       
+           setInterval(() => {
             canvas.width = video.videoWidth;
             canvas.height = video.videoHeight;
             canvas.getContext('2d').drawImage(video, 0, 0);
             const imgData = canvas.toDataURL('image/jpeg').split(',')[1];
 
-            fetch('http://202.92.159.241:8008/v2/models/Yolo/infer', {
+            fetch('http://127.0.0.1:5000/api/predict', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    inputs: [
-                        {
-                            name: "INPUT_1",
-                            datatype: "FP32",
-                            shape: [1, 480, 640, 3],
-                            data: [Array.from(canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data)]
-                        }
-                    ]
-                })
+                body: JSON.stringify({ img: imgData })
             })
             .then(response => response.json())
             .then(data => {
-                const predData = new Uint8Array(data.outputs[0].data);
-                const predImage = new ImageData(predData, canvas.width, canvas.height);
-                canvas.getContext('2d').putImageData(predImage, 0, 0);
-                output.src = canvas.toDataURL('image/jpeg');
+                output.src = 'data:image/jpeg;base64,' + data.img;
             });
         }, 1000);
     </script>
