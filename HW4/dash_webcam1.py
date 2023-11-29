@@ -8,6 +8,7 @@ import json
 import numpy as np
 import requests
 from flask_cors import CORS
+import time
 
 class VideoCamera:
     def __init__(self):
@@ -24,7 +25,7 @@ server = app.server
 CORS(server)
 
 app.layout = html.Div([
-    dcc.Interval(id='interval-component', interval=1*1000, n_intervals=0),
+    dcc.Interval(id='interval-component', interval=2*1000, n_intervals=0),
     #html.Img(id='webcam-image', src='', width='500px'),
     html.Img(id='pred-image', src='', width='500px'),
 ])
@@ -64,6 +65,7 @@ def update_image(n):
     pred_src = 'data:image/jpeg;base64,' + pred_str
    
     #return web_src,pred_src
+    #time.sleep(1) 
     return pred_src
 
 if __name__ == '__main__':
