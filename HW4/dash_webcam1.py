@@ -8,7 +8,7 @@ import json
 import numpy as np
 import requests
 from flask_cors import CORS
-import time
+
 
 class VideoCamera:
     def __init__(self):
