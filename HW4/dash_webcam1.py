@@ -47,7 +47,7 @@ def update_image(n):
         "inputs": [
             {
                 "name": "INPUT_1",
-                "datatype": "FP32",
+                "datatype": "uint8",
                 "shape": [1, 480,640, 3],
                 "data": [data_list]
             }
