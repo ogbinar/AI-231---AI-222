@@ -13,33 +13,49 @@ from langchain.prompts import PromptTemplate
 from langchain.schema import StrOutputParser
 from langchain_community.llms import HuggingFaceHub
 from langchain.chains import LLMChain
+import numpy as np
+from sentence_transformers import SentenceTransformer
+import jellyfish
 
+embedding_model_name="BAAI/bge-small-en-v1.5"
+embedding_model = SentenceTransformer(embedding_model_name)
 # Set HuggingFaceHub API token
 os.environ["HUGGINGFACEHUB_API_TOKEN"] = "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"
 
-# Function to calculate similarity scores
-def calculate_similarity_score(reference, candidate):
+
+
+def calculate_similarity(reference, candidate):
+    """
+    Calculates text similarity between a reference and a candidate using both sentence embeddings and n-gram matching.
+
+    Args:
+        reference (str): The reference text string.
+        candidate (str): The candidate text string.
+
+    Returns:
+        tuple: A tuple containing the exact match score and the n-gram matching score.
+    """
+
+    # Get embeddings for both texts
+    embedding1 = embedding_model.encode(str(reference), convert_to_tensor=True)
+    embedding2 = embedding_model.encode(str(candidate), convert_to_tensor=True)
+    # Move tensors to CPU
+    embedding1 = embedding1.cpu()
+    embedding2 = embedding2.cpu()
+    # Calculate cosine similarity using sentence embeddings
+    # Embeddings: Understands meaning, good for similar ideas with different words.
+    similarity_embeddings = np.dot(embedding1, embedding2) / (np.linalg.norm(embedding1) * np.linalg.norm(embedding2))
+
     # Tokenize the strings into words
-    reference = str(reference)
-    candidate = str(candidate)
+    # Normalized Levenshtein Score (1-0)
+    # Levenshtein: Counts edits, good for word order and typos, strict on word choice.
+    levenshtein_score = 1 - (jellyfish.levenshtein_distance(str(reference), str(candidate)) / max(len(str(reference)), len(str(candidate))))
     
-    tokens1 = nltk.word_tokenize(reference)
-    tokens2 = nltk.word_tokenize(candidate)
+    # Normalized Jaro-Winkler Score (1-0)
+    # Jaro-Winkler: Forgives some errors, good for names or addresses, balances exactness and flexibility.
+    jaro_winkler_score = jellyfish.jaro_winkler_similarity(str(reference), str(candidate))
 
-    # Exact Match Score
-    exact_match_score = 1.0 if tokens1 == tokens2 else 0.0
-
-    # N-Gram Matching Score
-    n = 2  # Define the n-gram size (bi-grams in this case)
-    ngrams1 = list(ngrams(tokens1, n))
-    ngrams2 = list(ngrams(tokens2, n))
-
-    # Calculate Jaccard similarity for N-Gram matching
-    ngram_match_score = jaccard_distance(set(ngrams1), set(ngrams2))
-
-    # em = 1 is exact
-    # ngram = 1 is exact
-    return exact_match_score, 1 - ngram_match_score  # Return the scores
+    return similarity_embeddings, levenshtein_score, jaro_winkler_score
 
 # Read the Excel file
 df = pd.read_excel("MAROON CHAT Q&A.xlsx", sheet_name="Public")
@@ -127,7 +143,14 @@ for index, row in df.iterrows():
     else:
         print("No float value found in the text.")
 
-    exactmatch_score, ngram_score = calculate_similarity_score(gt, cb_answer)
+    similarity_embeddings, levenshtein_score, jaro_winkler_score = calculate_similarity(gt, cb_answer)
+ 
+    """
+    Embeddings: Understands meaning, good for similar ideas with different words.
+    Levenshtein: Counts edits, good for word order and typos, strict on word choice.
+    Jaro-Winkler: Forgives some errors, good for names or addresses, balances exactness and flexibility.
+    """
+
 
     # Append answer pair to the list
     answer_pairs.append({
@@ -135,8 +158,11 @@ for index, row in df.iterrows():
         "groundtruth": gt,
         "chatbot": cb_answer,
         "zephyr_score": float_value,
-        "exactmatch_score": exactmatch_score,
-        "ngram_score": ngram_score
+        "levenshtein_score": levenshtein_score,
+        "jaro-wingkler_score": jaro_winkler_score,
+        "embeddings_score": similarity_embeddings
+
+
     })
 
 # Create dataframe from answer pairs
